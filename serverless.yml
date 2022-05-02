@@ -1,0 +1,79 @@
+service: blockchain-app
+
+frameworkVersion: "2.66.2"
+# variablesResolutionMode: 20210326
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  stage: dev
+  region: us-east-1
+  # iam:
+  #   role: ${ssm:/blockchain-app/role}
+  timeout: 30
+  apiGateway:
+    apiKeys:
+      - blockchain-app
+  environment: ${file(environments/${self:custom.currentStage}/serverless.env.yml)}
+
+functions:
+  systemHealth:
+    handler: src/handlers/systemHealth.handler
+    events:
+      - http:
+          method: get
+          path: system/healths
+  migrationHandler:
+    handler: src/handlers/migration.handler
+    events:
+      - http:
+          method: get
+          path: system/migration/database
+
+resources:
+  Resources:
+    ApiGatewayRestApi:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Name: blockchain-app
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+custom:
+  currentStage: ${opt:stage, self:provider.stage}
+  serverless-offline-ssm:
+    stages:
+      - dev
+    # ssm:
+    #   "/blockchain-app/ruleTableName": "validation_engine-rules"
+    #   "/blockchain-app/ruleGeneralLogTableName": "validation_engine-general_log"
+    #   "/blockchain-app/ruleResultsTableName": "validation_engine-results-log"
+    #   "/blockchain-app/variable": "idle"
+    #   # GitHub - Your personal token
+    #   "/blockchain-app/clientTokenGitHub": "github-token-here"
+    #   "/blockchain-app/repositoryNameGitHub": "validation-rules---sanbox---"
+    #   # Clients
+    #   "/blockchain-app/clientTableName": "validation_engine-clients"
+    #   # JWT
+    #   "/blockchain-app/jwt-secret-key" : "U29icmUgbGEgcGFsbWEgZGUgbWkgbGVuZ3VhCnZpdmUgZWwgaGltbm8gZGUgbWkgY29yYXrDs24Kc2llbnRvIGxhIGFsaWFuemEgbWFzIHBlcmZlY3RhCnF1ZSBpbmp1c3RpY2lhIGEgbWVkaWEgdm9zCmxhIHZpZGEgZXMgdW4gbGlicm8gw7p0aWwKcGFyYSBhcXVlbCBxdWUgcHVlZGUgY29tcHJlbmRlcgp0ZW5nbyBjb25maWFuemEgZW4gbGEgYmFsYW56YQpxdWUgaW5jbGluYSBtaSBwYXJlY2Vy"
+
+  # dynamodb:
+  #   stages:
+  #     - dev
+  #   start:
+  #     port: 8000
+  #     inMemory: false
+  #     migrate: true
+  #     seed: true
+  # s3:
+  #   host: localhost
+  #   directory: /tmp
+  esbuild:
+    bundle: true
+    minify: false
+    watch:
+      pattern: [src/**/*.(js|ts)] # match only typescript files in src directory
+      ignore: [.vscode/*, .git/*, .esbuild/*, .build, dist, node_modules]
